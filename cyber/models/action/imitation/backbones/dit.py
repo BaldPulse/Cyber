@@ -171,7 +171,7 @@ class _FinalLayer(nn.Module):
         shift, scale = self.adaLN_modulation(cond).chunk(2, dim=1)
         x = x * scale[None] + shift[None]
         x = self.linear(x)
-        return x.transpose(0, 1)
+        return x.transpose(0, 1)  # because self-attention expects (seq_len, batch_size, hidden_dim)
 
     def reset_parameters(self):
         for p in self.parameters():
@@ -365,7 +365,7 @@ class DiTNoiseNet(nn.Module):
         Returns:
             the encoded cache (list of tensors). shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
         """
-        obs_enc = obs_enc.transpose(0, 1)
+        obs_enc = obs_enc.transpose(0, 1)  # because self-attention expects (seq_len, batch_size, hidden_dim)
         pos = self.enc_pos(obs_enc)
         enc_cache = self.encoder(obs_enc, pos)
         return enc_cache
