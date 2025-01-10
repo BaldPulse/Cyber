@@ -62,7 +62,21 @@ class _PositionalEncoding(nn.Module):
 
 
 class _TimeNetwork(nn.Module):
+    """Timestep encoder network.
+
+    Timestep k is turned into a positional encoding using the implementation in tensor2tensor
+    [https://github.com/facebookresearch/fairseq/blob/ecbf110e1eb43861214b05fa001eff584954f65a/fairseq/modules/sinusoidal_positional_embedding.py#L15].
+
+    but differs from Attention is All You Need. The positional encoding is then passed through a feedforward network to project to output dimensions.
+    """
+
     def __init__(self, time_dim, out_dim, learnable_w=False):
+        """
+        Args:
+            time_dim: the dimension of the input tensor, must be even
+            out_dim: the dimension of the output tensor
+            learnable_w: whether the frequencies (fourier components) should be learnable (default: False uses "Attention if all you need" default)
+        """
         assert time_dim % 2 == 0, "time_dim must be even!"
         half_dim = int(time_dim // 2)
         super().__init__()
