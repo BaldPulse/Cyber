@@ -32,6 +32,12 @@ def _with_pos_embed(tensor, pos=None):
 
 class _PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=5000):
+        """
+        creates a sinusoidal positional encoding for the input tensor
+        Args:
+            d_model: the dimension of the input tensor
+            max_len: the maximum length of the input tensor
+        """
         super().__init__()
         # Compute the positional encodings once in log space
         pe = torch.zeros(max_len, d_model)
@@ -233,6 +239,10 @@ class _DiTDecoder(nn.Module):
 
 
 class _DiTNoiseNet(nn.Module):
+    """
+    DiTNoiseNet class as proposed in https://arxiv.org/pdf/2410.10088
+    """
+
     def __init__(
         self,
         ac_dim,
@@ -251,7 +261,7 @@ class _DiTNoiseNet(nn.Module):
         self.enc_pos = _PositionalEncoding(hidden_dim)
         self.register_parameter(
             "dec_pos",
-            nn.Parameter(torch.empty(ac_chunk, 1, hidden_dim), requires_grad=True),
+            nn.Parameter(torch.empty(ac_chunk, 1, hidden_dim), requires_grad=True),  # learnable decoder positional encoding
         )
         nn.init.xavier_uniform_(self.dec_pos.data)
 
