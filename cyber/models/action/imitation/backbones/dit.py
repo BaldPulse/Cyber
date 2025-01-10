@@ -266,7 +266,7 @@ class DiTNoiseNet(nn.Module):
     Training is stablized by applying conditions using adaLN-zero modulation layers instead of cross-attention.
 
     The design of the network can be considered an adaLN-zero conditioned decoder-only transformer with transformer encoders
-    for conditions.
+    for conditions. While usable for non-diffusion objectives, the network is optimized for diffusion.
 
     """
 
@@ -338,6 +338,21 @@ class DiTNoiseNet(nn.Module):
         print("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))  # noqa: T201
 
     def forward(self, noise_actions, time, obs_enc, enc_cache=None):
+        """
+        performs a forward pass through the DiTNoiseNet.
+        If enc_cache is None, the encoder is run first.
+        If enc_cache is not None, the encoder is skipped.
+
+        Args:
+            noise_actions (torch.Tensor): the noise actions. shape (batch_size, ac_chunk, ac_dim)
+            time (torch.Tensor): the time steps. shape (batch_size,)
+            obs_enc (torch.Tensor): the encoded observations. shape (batch_size, num_tokens, hidden_dim)
+            enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)] (default: None)
+
+        Returns:
+            enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
+            the predicted epsilon actions. shape (ac_chunk, batch_size, ac_dim)
+        """
         if enc_cache is None:
             enc_cache = self.forward_enc(obs_enc)
         return enc_cache, self.forward_dec(noise_actions, time, enc_cache)
@@ -348,7 +363,7 @@ class DiTNoiseNet(nn.Module):
             obs_enc (torch.Tensor): the encoded observations.  shape (batch_size, num_tokens, hidden_dim)
 
         Returns:
-            the encoded cache (list of tensors). shape (num_blocks, batch_size, num_tokens, hidden_dim)
+            the encoded cache (list of tensors). shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
         """
         obs_enc = obs_enc.transpose(0, 1)
         pos = self.enc_pos(obs_enc)
@@ -356,6 +371,15 @@ class DiTNoiseNet(nn.Module):
         return enc_cache
 
     def forward_dec(self, noise_actions, time, enc_cache):
+        """
+        Args:
+            noise_actions (torch.Tensor): the noise actions. shape (ac_chunk, batch_size, ac_dim)
+            time (torch.Tensor): the time steps. shape (batch_size,)
+            enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
+
+        Returns:
+            the predicted epsilon actions. shape (ac_chunk, batch_size, ac_dim)
+        """
         time_enc = self.time_net(time)
 
         ac_tokens = self.ac_proj(noise_actions)

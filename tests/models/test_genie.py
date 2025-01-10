@@ -2,7 +2,7 @@ from cyber.models.world.dynamic import STMaskGIT
 from omegaconf import OmegaConf
 import torch
 
-from tests.models.utils import reseed_everything
+from tests.utils import reseed_everything
 
 import pytest
 import sys

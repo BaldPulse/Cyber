@@ -11,7 +11,7 @@ from cyber.models.world.autoencoder.cosmos_tokenizer.utils import (
     unpad_video_batch
 )
 from cyber.models.world.autoencoder.cosmos_tokenizer.networks.configs import discrete_video
-from tests.models.utils import reseed_everything
+from tests.utils import reseed_everything
 
 class TestCosmosTokenizer:
     @classmethod

@@ -3,7 +3,7 @@ from cyber.models.world import autoencoder
 from omegaconf import OmegaConf
 import torch
 
-from tests.models.utils import reseed_everything
+from tests.utils import reseed_everything
 
 import pytest
 
