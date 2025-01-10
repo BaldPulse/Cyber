@@ -136,6 +136,11 @@ class _TransformerEncoder(nn.Module):
             layer.reset_parameters()
 
     def forward(self, src, pos):
+        """
+        Args:
+            src: the source tensor
+            pos: the positional encoding tensor. Optional: if None, no positional encoding is used
+        """
         x, outputs = src, []
         for layer in self.layers:
             x = layer(x, pos)
@@ -154,7 +159,7 @@ class _TransformerDecoder(_TransformerEncoder):
 class _FinalLayer(nn.Module):
     def __init__(self, hidden_size, out_size):
         super().__init__()
-        self.norm_final = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        # self.norm_final = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6) # never used
         self.linear = nn.Linear(hidden_size, out_size, bias=True)
         self.adaLN_modulation = nn.Sequential(nn.SiLU(), nn.Linear(hidden_size, 2 * hidden_size, bias=True))
 
@@ -252,9 +257,17 @@ class _DiTDecoder(nn.Module):
             s.reset_parameters()
 
 
-class _DiTNoiseNet(nn.Module):
+class DiTNoiseNet(nn.Module):
     """
     DiTNoiseNet class as proposed in https://arxiv.org/pdf/2410.10088
+
+    This class conprises layers of self-attention encoder-decoder blocks with residual connections.
+    It is designed to improve inference speed of diffusion through an encode-once-decode-many architecture.
+    Training is stablized by applying conditions using adaLN-zero modulation layers instead of cross-attention.
+
+    The design of the network can be considered an adaLN-zero conditioned decoder-only transformer with transformer encoders
+    for conditions.
+
     """
 
     def __init__(
@@ -269,6 +282,18 @@ class _DiTNoiseNet(nn.Module):
         nhead=8,
         activation="gelu",
     ):
+        """
+        Args:
+            ac_dim: the dimension of the action representation
+            ac_chunk: the number of actions to predict at once
+            time_dim: the dimension of the time representation
+            hidden_dim: the dimension of the token embeddings. Default: 512
+            num_blocks: the number of transformer blocks (encoder and decoder). Default: 6
+            dropout: the dropout rate. Default: 0.1
+            dim_feedforward: the dimension of the feedforward network model. Default: 2048
+            nhead: the number of heads in the multiheadattention models. Default: 8
+            activation: the activation function of the model. Default: "gelu"
+        """
         super().__init__()
 
         # positional encoding blocks
@@ -317,7 +342,14 @@ class _DiTNoiseNet(nn.Module):
             enc_cache = self.forward_enc(obs_enc)
         return enc_cache, self.forward_dec(noise_actions, time, enc_cache)
 
-    def forward_enc(self, obs_enc):
+    def forward_enc(self, obs_enc: torch.Tensor):
+        """
+        Args:
+            obs_enc (torch.Tensor): the encoded observations.  shape (batch_size, num_tokens, hidden_dim)
+
+        Returns:
+            the encoded cache (list of tensors). shape (num_blocks, batch_size, num_tokens, hidden_dim)
+        """
         obs_enc = obs_enc.transpose(0, 1)
         pos = self.enc_pos(obs_enc)
         enc_cache = self.encoder(obs_enc, pos)
