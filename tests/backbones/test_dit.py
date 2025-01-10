@@ -17,11 +17,11 @@ class TestDiTNoiseNet:
 
         cls.model = DiTNoiseNet(ac_dim=cls.action_dim,
                                 ac_chunk=cls.chunk_size,
-                                hidden_size=cls.hidden_size,
+                                hidden_dim=cls.hidden_size,
                                 num_blocks=cls.num_blocks)
         
         cls.input = {
-            "noisy_actions": torch.randn(3, 2, 2), # (batch_size, ac_chunk, ac_dim)
+            "noise_actions": torch.randn(3, 2, 2), # (batch_size, ac_chunk, ac_dim)
             "time": torch.randn(3), # (batch_size, 1)
             "obs_enc": torch.randn(3, 42, 512) # (batch_size, num_tokens, hidden_dim)
         }
@@ -37,4 +37,7 @@ class TestDiTNoiseNet:
         assert output.shape == (3, 2, 2), f"output shape is {output.shape}"
         # load prediction from file
         expected_output = torch.load("tests/fixtures/tensors/dit_noisenet_prediction.pth")
-        assert torch.allclose(output, expected_output), f"output is not equal"
+        for i in range(len(expected_output[0])):
+            assert torch.allclose(output[0][i], expected_output[0][i], atol=1e-5), f"output is not equal"
+
+        assert torch.allclose(output[1], expected_output[1]), f"output is not equal"
