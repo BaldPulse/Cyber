@@ -13,12 +13,11 @@
 
 import copy
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
-from cyber.models.action.imitation.backbones.nn_utils import SinusoidalEmbedding
+from cyber.models.action.imitation.backbones.nn_utils import SinusoidalPosEnc, SinusoidalTimestepEmb
 
 
 def _get_activation_fn(activation):
@@ -34,39 +33,6 @@ def _get_activation_fn(activation):
 
 def _with_pos_embed(tensor, pos=None):
     return tensor if pos is None else tensor + pos
-
-
-class _TimeNetwork(nn.Module):
-    """Timestep encoder network.
-
-    Timestep k is turned into a positional encoding using the implementation in tensor2tensor
-    [https://github.com/facebookresearch/fairseq/blob/ecbf110e1eb43861214b05fa001eff584954f65a/fairseq/modules/sinusoidal_positional_embedding.py#L15].
-
-    but differs from Attention is All You Need. The positional encoding is then passed through a feedforward network to project to output dimensions.
-    """
-
-    def __init__(self, time_dim, out_dim, learnable_w=False):
-        """
-        Args:
-            time_dim: the dimension of the input tensor, must be even
-            out_dim: the dimension of the output tensor
-            learnable_w: whether the frequencies (fourier components) should be learnable (default: False uses "Attention if all you need" default)
-        """
-        assert time_dim % 2 == 0, "time_dim must be even!"
-        half_dim = int(time_dim // 2)
-        super().__init__()
-
-        w = np.log(10000) / (half_dim - 1)
-        w = torch.exp(torch.arange(half_dim) * -w).float()
-        self.register_parameter("w", nn.Parameter(w, requires_grad=learnable_w))
-
-        self.out_net = nn.Sequential(nn.Linear(time_dim, out_dim), nn.SiLU(), nn.Linear(out_dim, out_dim))
-
-    def forward(self, x):
-        assert len(x.shape) == 1, "assumes 1d input timestep array"
-        x = x[:, None] * self.w[None]
-        x = torch.cat((torch.cos(x), torch.sin(x)), dim=1)
-        return self.out_net(x)
 
 
 class _SelfAttnEncoder(nn.Module):
@@ -272,7 +238,7 @@ class DiTNoiseNet(nn.Module):
         super().__init__()
 
         # positional encoding blocks
-        self.enc_pos = SinusoidalEmbedding(hidden_dim)
+        self.enc_pos = SinusoidalPosEnc(hidden_dim)
         self.register_parameter(
             "dec_pos",
             nn.Parameter(torch.empty(ac_chunk, 1, hidden_dim), requires_grad=True),  # learnable decoder positional encoding
@@ -280,7 +246,9 @@ class DiTNoiseNet(nn.Module):
         nn.init.xavier_uniform_(self.dec_pos.data)
 
         # input encoder mlps
-        self.time_net = _TimeNetwork(time_dim, hidden_dim)
+        self.time_net = self.out_net = nn.Sequential(
+            SinusoidalTimestepEmb(time_dim), nn.Linear(time_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim)
+        )
         self.ac_proj = nn.Sequential(
             nn.Linear(ac_dim, ac_dim),
             nn.GELU(approximate="tanh"),
