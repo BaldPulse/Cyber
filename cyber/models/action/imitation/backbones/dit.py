@@ -1,11 +1,15 @@
+# dit.py diffusion transformer for robotics policy
+# implementation of DiT-Block from 'The Ingredients for Robotic Diffusion Transformers' https://arxiv.org/abs/2410.10088
+# by Dasari et al.
+
 # This project uses dit-policy https://github.com/sudeepdasari/dit-policy which is licensed under the MIT License
 # The original liscense is included in the MITLICENSE.md file in the same directory as this file
+
+# Code has been modified by adding comments, restructuring for clarity and adaptability to the project
 
 # ORIGINAL NOTICE:
 # Heavy inspiration taken from DETR by Meta AI (Carion et. al.): https://github.com/facebookresearch/detr
 # and DiT by Meta AI (Peebles and Xie): https://github.com/facebookresearch/DiT
-
-# Code has been modified by adding comments, restructuring for clarity and adaptability to the project
 
 import copy
 
