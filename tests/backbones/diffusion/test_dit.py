@@ -33,8 +33,10 @@ class TestDiTNoiseNet:
 
     def test_forward(self):
         self.model.train()
+        output = []
         with torch.no_grad():
-            output = self.model(**self.input)
+            output.append(self.model.forward_enc(self.input['obs_enc']))
+            output.append(self.model.forward_dec(self.input['noise_actions'], self.input['time'], output[0]))
         assert output[1].shape == (3, 2, 2), f"output shape is {output.shape}"
         # load prediction from file
         expected_output = torch.load("tests/fixtures/tensors/dit_noisenet_prediction.pth")

@@ -283,7 +283,9 @@ class DiTNoiseNet(nn.Module):
 
         logger.info("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))
 
-    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, obs_enc: torch.Tensor, enc_cache: Optional[List[torch.Tensor]] = None):
+    def forward(
+        self, noise_actions: torch.Tensor, time_step: torch.Tensor, obs_enc: torch.Tensor, enc_cache: Optional[List[torch.Tensor]] = None
+    ) -> torch.Tensor:
         """
         performs a forward pass through the DiTNoiseNet.
         If enc_cache is None, the encoder is run first.
@@ -301,9 +303,9 @@ class DiTNoiseNet(nn.Module):
         """
         if enc_cache is None:
             enc_cache = self.forward_enc(obs_enc)
-        return enc_cache, self.forward_dec(noise_actions, time_step, enc_cache)
+        return self.forward_dec(noise_actions, time_step, enc_cache)
 
-    def forward_enc(self, obs_enc: torch.Tensor):
+    def forward_enc(self, obs_enc: torch.Tensor) -> List[torch.Tensor]:
         """
         Args:
             obs_enc (torch.Tensor): the encoded observations.  shape (batch_size, num_tokens, hidden_dim)
@@ -316,7 +318,7 @@ class DiTNoiseNet(nn.Module):
         enc_cache = self.encoder(obs_enc, pos)
         return enc_cache
 
-    def forward_dec(self, noise_actions: torch.Tensor, time_step: torch.Tensor, enc_cache: List[torch.Tensor]):
+    def forward_dec(self, noise_actions: torch.Tensor, time_step: torch.Tensor, enc_cache: List[torch.Tensor]) -> torch.Tensor:
         """
         Args:
             noise_actions (torch.Tensor): the noise actions. shape (ac_chunk, batch_size, ac_dim)
