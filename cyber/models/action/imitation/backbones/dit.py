@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
-from cyber.models.action.imitation.backbones.nn_utils import SinusoidalPosEnc, SinusoidalTimestepEmb
+from cyber.models.action.imitation.backbones.nn_utils import SinusoidalPosEnc, FourierEmb
 
 
 def _get_activation_fn(activation):
@@ -246,9 +246,7 @@ class DiTNoiseNet(nn.Module):
         nn.init.xavier_uniform_(self.dec_pos.data)
 
         # input encoder mlps
-        self.time_net = self.out_net = nn.Sequential(
-            SinusoidalTimestepEmb(time_dim), nn.Linear(time_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim)
-        )
+        self.time_net = self.out_net = nn.Sequential(FourierEmb(time_dim), nn.Linear(time_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim))
         self.ac_proj = nn.Sequential(
             nn.Linear(ac_dim, ac_dim),
             nn.GELU(approximate="tanh"),
