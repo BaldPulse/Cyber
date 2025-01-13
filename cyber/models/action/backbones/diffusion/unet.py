@@ -246,25 +246,30 @@ class ConditionalUnet1D(nn.Module):
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
 
-    def forward(self, sample: torch.Tensor, timestep: Union[torch.Tensor, float, int], local_cond=None, global_cond=None, **kwargs):
+    def forward(self, noise_actions: torch.Tensor, time_step: Union[torch.Tensor, float, int], local_cond=None, global_cond=None, **kwargs):
         """forward pass for the model.
 
         Since the model is devised for diffusion policy, the argument names are specific to diffusion policy
 
         args:
-            sample(torch.Tensor): input tensor, shape: (batch_size, horizon, input_dim)
-            timestep(Union[torch.Tensor, float, int]): diffusion step. if not tensor, it is converted to tensor
+            noise_actions(torch.Tensor): input tensor, shape: (batch_size, horizon, input_dim)
+            time_step(Union[torch.Tensor, float, int]): diffusion step. if not tensor, it is converted to tensor
             local_cond(torch.Tensor): local conditioning tensor, shape: (batch_size, horizon, local_cond_dim), default=None
             global_cond(torch.Tensor): global conditioning tensor, shape: (batch_size, global_cond_dim), default=None
 
         returns:
             output(torch.Tensor): predicted noise, shape: (batch_size, horizon, input_dim)
+
+        NOTE: because of upsampling/downsampling with stride 2, some action horizons may cause shape mismatch.
+        In general, avoid using horizons that are not multiples of 2 or too small.
+
+        NOTE 2: the original code has a bug in the upsample path where local features are not added. This has been fixed here.
         """
 
-        sample = einops.rearrange(sample, "b h t -> b t h")  # because conv1d wants batch, channels, length
+        sample = einops.rearrange(noise_actions, "b h t -> b t h")  # because conv1d wants batch, channels, length
 
         # 1. time
-        timesteps = timestep
+        timesteps = time_step
         if not isinstance(timesteps, torch.Tensor):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             timesteps = torch.tensor([timesteps], dtype=torch.long, device=sample.device)
@@ -304,17 +309,16 @@ class ConditionalUnet1D(nn.Module):
             x = mid_module(x, global_feature)
 
         # upsample convolutions with skip connections
-        for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
+        for _idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             x = torch.cat((x, h.pop()), dim=1)
             x = resnet(x, global_feature)
             # The original code has a bug here,
             # idx == len(self.up_modules) and len(h_local) > 0 which causes local features to never be added in the upsample path
             # The bug is fixed here and thus makes all original checkpoints incompatible
-            if idx == len(self.up_modules) - 1 and len(h_local) > 0:
-                x = x + h_local[1]
             x = resnet2(x, global_feature)
             x = upsample(x)
-
+        if len(h_local) > 0:
+            x = x + h_local[1]  # implement the fix here
         x = self.final_conv(x)
 
         x = einops.rearrange(x, "b t h -> b h t")  # back to original shape
