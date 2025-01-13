@@ -18,6 +18,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
+from cyber.models.action.imitation.backbones.nn_utils import SinusoidalEmbedding
+
 
 def _get_activation_fn(activation):
     """Return an activation function given a string"""
@@ -32,37 +34,6 @@ def _get_activation_fn(activation):
 
 def _with_pos_embed(tensor, pos=None):
     return tensor if pos is None else tensor + pos
-
-
-class _PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=5000):
-        """
-        creates a sinusoidal positional encoding for the input tensor
-        Args:
-            d_model: the dimension of the input tensor
-            max_len: the maximum length of the input tensor
-        """
-        super().__init__()
-        # Compute the positional encodings once in log space
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float) * -(np.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer("pe", pe)
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor of shape (seq_len, batch_size, d_model)
-
-        Returns:
-            Tensor of shape (seq_len, batch_size, d_model) with positional encodings added
-        """
-        pe = self.pe[: x.shape[0]]
-        pe = pe.repeat((1, x.shape[1], 1))
-        return pe.detach().clone()
 
 
 class _TimeNetwork(nn.Module):
@@ -301,7 +272,7 @@ class DiTNoiseNet(nn.Module):
         super().__init__()
 
         # positional encoding blocks
-        self.enc_pos = _PositionalEncoding(hidden_dim)
+        self.enc_pos = SinusoidalEmbedding(hidden_dim)
         self.register_parameter(
             "dec_pos",
             nn.Parameter(torch.empty(ac_chunk, 1, hidden_dim), requires_grad=True),  # learnable decoder positional encoding
