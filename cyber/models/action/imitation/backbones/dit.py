@@ -3,7 +3,7 @@
 # by Dasari et al.
 
 # This project uses dit-policy https://github.com/sudeepdasari/dit-policy which is licensed under the MIT License
-# The original liscense is included in the MITLICENSE.md file in the same directory as this file
+# The original liscense is included in the dit_LICENSE.md file in the same directory as this file
 
 # Code has been modified by adding comments, restructuring for clarity and adaptability to the project
 
@@ -12,12 +12,15 @@
 # and DiT by Meta AI (Peebles and Xie): https://github.com/facebookresearch/DiT
 
 import copy
+import logging
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
 from cyber.models.action.imitation.backbones.nn_utils import SinusoidalPosEnc, FourierEmb
+
+logger = logging.getLogger(__name__)
 
 
 def _get_activation_fn(activation):
@@ -276,7 +279,7 @@ class DiTNoiseNet(nn.Module):
         # turns predicted tokens into epsilons
         self.eps_out = _FinalLayer(hidden_dim, ac_dim)
 
-        print("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))  # noqa: T201
+        logger.info("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))
 
     def forward(self, noise_actions, time, obs_enc, enc_cache=None):
         """

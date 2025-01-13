@@ -1,3 +1,14 @@
+# unet.py conditional 1d unet for diffusion policy
+# implementation of conditional 1d unet as described in https://arxiv.org/abs/2303.04137
+
+# this project uses https://github.com/real-stanford/diffusion_policy/blob/main/diffusion_policy/model/diffusion/conditional_unet1d.py which
+# is licensed under the MIT License. The original license can be found at unet_LICENSE.md
+
+# Code has been modified by adding comments, restructuring for clarity and adaptability to the project
+
+import logging
+import itertools
+
 import einops.layers
 import einops.layers.torch
 from torch import nn
@@ -7,6 +18,8 @@ import einops
 from typing import Union
 
 from cyber.models.action.imitation.backbones.nn_utils import FourierEmb
+
+logger = logging.getLogger(__name__)
 
 
 class Downsample1d(nn.Module):
@@ -103,13 +116,13 @@ class ConditionalUnet1D(nn.Module):
         local_cond_dim=None,
         global_cond_dim=None,
         diffusion_step_embed_dim=256,
-        down_dims=[256, 512, 1024],
+        down_dims=(256, 512, 1024),
         kernel_size=3,
         n_groups=8,
         cond_predict_scale=False,
     ):
         super().__init__()
-        all_dims = [input_dim] + list(down_dims)
+        all_dims = [input_dim, *list(down_dims)]
         start_dim = down_dims[0]
 
         dsed = diffusion_step_embed_dim
@@ -123,7 +136,7 @@ class ConditionalUnet1D(nn.Module):
         if global_cond_dim is not None:
             cond_dim += global_cond_dim
 
-        in_out = list(zip(all_dims[:-1], all_dims[1:], strict=False))
+        in_out = list(itertools.pairwise(all_dims))
 
         local_cond_encoder = None
         if local_cond_dim is not None:
@@ -227,7 +240,7 @@ class ConditionalUnet1D(nn.Module):
             global_feature = torch.cat([global_feature, global_cond], axis=-1)
 
         # encode local features
-        h_local = list()
+        h_local = []
         if local_cond is not None:
             local_cond = einops.rearrange(local_cond, "b h t -> b t h")
             resnet, resnet2 = self.local_cond_encoder
