@@ -17,7 +17,7 @@ import einops
 
 from typing import Union
 
-from cyber.models.action.imitation.backbones.nn_utils import FourierEmb
+from cyber.models.action.backbones.diffusion.nn_utils import FourierEmb
 
 logger = logging.getLogger(__name__)
 
@@ -247,14 +247,21 @@ class ConditionalUnet1D(nn.Module):
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
 
     def forward(self, sample: torch.Tensor, timestep: Union[torch.Tensor, float, int], local_cond=None, global_cond=None, **kwargs):
+        """forward pass for the model.
+
+        Since the model is devised for diffusion policy, the argument names are specific to diffusion policy
+
+        args:
+            sample(torch.Tensor): input tensor, shape: (batch_size, horizon, input_dim)
+            timestep(Union[torch.Tensor, float, int]): diffusion step. if not tensor, it is converted to tensor
+            local_cond(torch.Tensor): local conditioning tensor, shape: (batch_size, horizon, local_cond_dim), default=None
+            global_cond(torch.Tensor): global conditioning tensor, shape: (batch_size, global_cond_dim), default=None
+
+        returns:
+            output(torch.Tensor): predicted noise, shape: (batch_size, horizon, input_dim)
         """
-        x: (B,T,input_dim)
-        timestep: (B,) or int, diffusion step
-        local_cond: (B,T,local_cond_dim)
-        global_cond: (B,global_cond_dim)
-        output: (B,T,input_dim)
-        """
-        sample = einops.rearrange(sample, "b h t -> b t h")
+
+        sample = einops.rearrange(sample, "b h t -> b t h")  # because conv1d wants batch, channels, length
 
         # 1. time
         timesteps = timestep

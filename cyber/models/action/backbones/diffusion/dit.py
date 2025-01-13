@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
-from cyber.models.action.imitation.backbones.nn_utils import SinusoidalPosEnc, FourierEmb
+from cyber.models.action.backbones.diffusion.nn_utils import SinusoidalPosEnc, FourierEmb
 
 logger = logging.getLogger(__name__)
 
