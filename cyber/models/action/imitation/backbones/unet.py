@@ -61,7 +61,21 @@ class Conv1dBlock(nn.Module):
 
 
 class ConditionalResidualBlock1D(nn.Module):
+    """
+    Conditional Residual Block for 1D data i.e. temporal data.
+    Uses FiLM modulation for conditioning.
+    """
+
     def __init__(self, in_channels, out_channels, cond_dim, kernel_size=3, n_groups=8, cond_predict_scale=False):
+        """
+        args:
+            in_channels(int): number of input channels
+            out_channels(int): number of output channels
+            cond_dim(int): dimension of the conditioning vector
+            kernel_size(int): kernel size for the convolutional layers, default=3
+            n_groups(int): number of groups for GroupNorm, default=8
+            cond_predict_scale(bool): whether to predict scale for FiLM modulation, default=False(only bias is predicted)
+        """
         super().__init__()
 
         self.blocks = nn.ModuleList(
@@ -110,6 +124,13 @@ class ConditionalResidualBlock1D(nn.Module):
 
 
 class ConditionalUnet1D(nn.Module):
+    """unet for 1d data with FiLM modulation for conditioning
+
+    Janner et all induced diffusion into robotics policy using a 1d unet https://arxiv.org/abs/2205.09991
+    Cheng et al. proposed a conditional unet for diffusion policy https://arxiv.org/abs/2303.04137
+    In terms of architecture, this is a conditional unet for 1d data with FiLM modulation for conditioning
+    """
+
     def __init__(
         self,
         input_dim,
@@ -121,6 +142,17 @@ class ConditionalUnet1D(nn.Module):
         n_groups=8,
         cond_predict_scale=False,
     ):
+        """
+        args:
+            input_dim(int): number of input channels
+            local_cond_dim(int): dimension of the local conditioning vector, default=None(no local conditioning)
+            global_cond_dim(int): dimension of the global conditioning vector, default=None(no global conditioning)
+            diffusion_step_embed_dim(int): dimension of the diffusion step embedding, default=256
+            down_dims(tuple): dimensions of the unet downsampled layers, default=(256, 512, 1024)
+            kernel_size(int): kernel size for the convolutional layers, default=3
+            n_groups(int): number of groups for GroupNorm, default=8
+            cond_predict_scale(bool): whether to predict scale for FiLM modulation, default=False(only bias is predicted)
+        """
         super().__init__()
         all_dims = [input_dim, *list(down_dims)]
         start_dim = down_dims[0]
@@ -265,11 +297,10 @@ class ConditionalUnet1D(nn.Module):
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             x = torch.cat((x, h.pop()), dim=1)
             x = resnet(x, global_feature)
-            # The correct condition should be:
-            # if idx == (len(self.up_modules)-1) and len(h_local) > 0:
-            # However this change will break compatibility with published checkpoints.
-            # Therefore it is left as a comment.
-            if idx == len(self.up_modules) and len(h_local) > 0:
+            # The original code has a bug here,
+            # idx == len(self.up_modules) and len(h_local) > 0 which causes local features to never be added in the upsample path
+            # The bug is fixed here and thus makes all original checkpoints incompatible
+            if idx == len(self.up_modules) - 1 and len(h_local) > 0:
                 x = x + h_local[1]
             x = resnet2(x, global_feature)
             x = upsample(x)
