@@ -20,6 +20,7 @@ class TestDiTNoiseNet:
                                 hidden_dim=cls.hidden_size,
                                 num_blocks=cls.num_blocks)
         
+        reseed_everything()
         cls.input = {
             "noise_actions": torch.randn(3, 2, 2), # (batch_size, ac_chunk, ac_dim)
             "time": torch.randn(3), # (batch_size, 1)
@@ -34,7 +35,7 @@ class TestDiTNoiseNet:
         self.model.train()
         with torch.no_grad():
             output = self.model(**self.input)
-        assert output.shape == (3, 2, 2), f"output shape is {output.shape}"
+        assert output[1].shape == (3, 2, 2), f"output shape is {output.shape}"
         # load prediction from file
         expected_output = torch.load("tests/fixtures/tensors/dit_noisenet_prediction.pth")
         for i in range(len(expected_output[0])):
