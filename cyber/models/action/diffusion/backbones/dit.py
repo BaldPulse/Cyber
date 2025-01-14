@@ -284,12 +284,7 @@ class DiTNoiseNet(DiffusionBackbone):
 
         logger.info("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))
 
-    def forward(
-        self,
-        noise_actions: torch.Tensor,
-        time_step: torch.Tensor,
-        condition: torch.Tensor,
-    ) -> torch.Tensor:
+    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         performs a forward pass through the DiTNoiseNet.
         If enc_cache is None, the encoder is run first.
@@ -305,8 +300,9 @@ class DiTNoiseNet(DiffusionBackbone):
             enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
             the predicted epsilon actions. shape (ac_chunk, batch_size, ac_dim)
         """
-        # if enc_cache is None:
-        enc_cache = self.forward_enc(condition)
+        enc_cache = kwargs.get("enc_cache", None)
+        if enc_cache is None:
+            enc_cache = self.forward_enc(condition)
         return self.forward_dec(noise_actions, time_step, enc_cache)
 
     def forward_enc(self, obs_enc: torch.Tensor) -> List[torch.Tensor]:

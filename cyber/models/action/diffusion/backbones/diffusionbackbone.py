@@ -18,6 +18,7 @@ class DiffusionBackbone(nn.Module, ABC):
         noise_actions: torch.Tensor,
         time_step: torch.Tensor,
         condition: torch.Tensor,
+        **kwargs,
     ) -> torch.Tensor:
         """Forward pass of the diffusion backbone.
 
