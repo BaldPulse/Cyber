@@ -275,10 +275,10 @@ class ConditionalUnet1D(DiffusionBackbone):
             timesteps = timesteps[None].to(sample.device)
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         timesteps = timesteps.expand(sample.shape[0])
-        if condition:
-            self.global_condition = condition
-        else:
+        if condition is None:
             assert hasattr(self, "global_condition"), "global condition must be provided"
+        else:
+            self.global_condition = condition
         global_feature = self.diffusion_step_encoder(timesteps)
         global_feature = torch.cat([global_feature, self.global_condition], axis=-1)
 

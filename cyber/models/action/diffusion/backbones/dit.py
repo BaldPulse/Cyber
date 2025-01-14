@@ -303,9 +303,9 @@ class DiTNoiseNet(DiffusionBackbone):
         if enc_cache is provided, it will overwride the cached enc_cache.
         """
         enc_cache = kwargs.get("enc_cache", None)
-        if enc_cache:
+        if enc_cache is not None:
             self.enc_cache = enc_cache
-        if condition:
+        if condition is not None:
             self.enc_cache = self.forward_enc(condition)
         return self.forward_dec(noise_actions, time_step, self.enc_cache)
 
