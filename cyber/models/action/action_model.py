@@ -5,6 +5,7 @@ import numpy as np
 
 from torch import nn
 
+import prettytable
 from typing import Optional, List, ClassVar
 
 from cyber.models import CyberModule
@@ -27,7 +28,7 @@ class ActionModel(CyberModule):
     """
 
     module_registry: nn.ModuleDict = nn.ModuleDict()  # shared registry for all modules. this makes sharing modules easier
-    module_info: ClassVar[dict[str, tuple[int, int, List[str]]]] = {}  # module_name: (num_params, num_trainable_params, used_in)
+    module_info: ClassVar[dict[str, tuple[str, int, int, List[str]]]] = {}  # module_name: (classname, num_params, num_trainable_params, used_in)
 
     def register_module(
         self,
@@ -60,7 +61,7 @@ class ActionModel(CyberModule):
         # calculate the number of parameters as well as the number of trainable parameters
         num_params = sum(p.numel() for p in module.parameters())
         num_trainable_params = sum(p.numel() for p in module.parameters() if p.requires_grad)
-        self.module_info[name] = (num_params, num_trainable_params, [])
+        self.module_info[name] = (module.__class__.__name__, num_params, num_trainable_params, [])
 
     def delete_module(self, name: str) -> None:
         """
@@ -73,6 +74,16 @@ class ActionModel(CyberModule):
             raise ValueError(f"Module with name {name} is not registered.")
         del self.module_registry[name]
         del self.module_info[name]
+
+    def print_module_info(self) -> None:
+        """
+        Print the information about the modules in the module registry.
+        """
+        table = prettytable.PrettyTable()
+        table.field_names = ["Name", "Class", "Num Params", "Num Trainable Params", "Used In"]
+        for name, info in self.module_info.items():
+            table.add_row([name, *info])
+        print(table)  # noqa: T201
 
 
 class CyberAgent:
