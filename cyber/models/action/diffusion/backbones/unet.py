@@ -15,6 +15,7 @@ from torch import nn
 import torch
 import einops
 
+from typing import Optional
 
 from cyber.models.action.diffusion.backbones.nn_utils import FourierEmb
 from cyber.models.action.diffusion.backbones.diffusionbackbone import DiffusionBackbone
@@ -244,7 +245,7 @@ class ConditionalUnet1D(DiffusionBackbone):
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
 
-    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: torch.Tensor, **kwargs):
+    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: Optional[torch.Tensor] = None, **kwargs):
         """forward pass for the model.
 
         Since the model is devised for diffusion policy, the argument names are specific to diffusion policy

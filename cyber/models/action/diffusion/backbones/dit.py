@@ -14,7 +14,7 @@
 import copy
 import logging
 
-from typing import List
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
@@ -284,7 +284,7 @@ class DiTNoiseNet(DiffusionBackbone):
 
         logger.info("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))
 
-    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: torch.Tensor, **kwargs) -> torch.Tensor:
+    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: Optional[torch.Tensor] = None, **kwargs) -> torch.Tensor:
         """
         performs a forward pass through the DiTNoiseNet.
         If enc_cache is None, the encoder is run first.
@@ -294,16 +294,20 @@ class DiTNoiseNet(DiffusionBackbone):
             noise_actions (torch.Tensor): the noise actions. shape (batch_size, ac_chunk, ac_dim)
             time_step (torch.Tensor): the time steps. shape (batch_size,)
             obs_enc (torch.Tensor): the encoded observations. shape (batch_size, num_tokens, hidden_dim)
-            enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)] (default: None)
 
         Returns:
             enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
             the predicted epsilon actions. shape (ac_chunk, batch_size, ac_dim)
+
+        if condition is None, then it is assumed that condition is cached somewhere in the model.
+        if enc_cache is provided, it will overwride the cached enc_cache.
         """
         enc_cache = kwargs.get("enc_cache", None)
-        if enc_cache is None:
-            enc_cache = self.forward_enc(condition)
-        return self.forward_dec(noise_actions, time_step, enc_cache)
+        if enc_cache:
+            self.enc_cache = enc_cache
+        if condition:
+            self.enc_cache = self.forward_enc(condition)
+        return self.forward_dec(noise_actions, time_step, self.enc_cache)
 
     def forward_enc(self, obs_enc: torch.Tensor) -> List[torch.Tensor]:
         """
