@@ -6,10 +6,14 @@
 
 import numpy as np
 
+import torch
 from torch import nn
 
-import prettytable
+
 from typing import Optional, List, ClassVar
+
+import prettytable
+import logging
 
 from cyber.models import CyberModule
 
@@ -27,17 +31,20 @@ class ActionModel(CyberModule):
     If there are no heterogeneities, stems and trunks can be identity functions that does not accept any prompts and only
     the heads are used.
 
-    TODO: make this class more flexible
+    TODO: load balancing between different modules. BIG TODO due to the complexity of the problem
     """
 
     module_registry: nn.ModuleDict = nn.ModuleDict()  # shared registry for all modules. this makes sharing modules easier
     module_info: ClassVar[dict[str, tuple[str, int, int, List[str]]]] = {}  # module_name: (classname, num_params, num_trainable_params, used_in)
+    module_batchsize = ClassVar[dict[str, int]]  # batchsize for each module
 
     """
     The advent of transformers has made it easy to handle highly heterogeneous data.
     This structure assumes that the trunk has the ability to handle any kind of data.
     """
     domain_registry: ClassVar[dict[str, tuple[str, str, str]]] = {}  # registry holding the stem, trunk, and head for each domain
+
+    logger = logging.getLogger("ActionModel")
 
     def register_module(
         self,
@@ -147,6 +154,42 @@ class ActionModel(CyberModule):
         self.module_info[stem][3].remove(domain + ".stem")
         self.module_info[trunk][3].remove(domain + ".trunk")
         self.module_info[head][3].remove(domain + ".head")
+
+    def print_domain_info(self) -> None:
+        """
+        Print the information about the domains in the domain registry.
+        """
+        table = prettytable.PrettyTable()
+        table.field_names = ["Domain", "Stem", "Trunk", "Head"]
+        for domain, (stem, trunk, head) in self.domain_registry.items():
+            table.add_row([domain, stem, trunk, head])
+        print(table)  # noqa: T201
+
+    def configure_module_batchsize(self, module_batchsize: dict[str, int]) -> None:
+        """
+        Configure the batchsize of the modules for running the model.
+
+        Args:
+            module_batchsize (dict[str, int]): the batchsize for each module
+        """
+
+        for name, module in self.module_registry.items():
+            if name in module_batchsize:
+                module.configure_batchsize(module_batchsize[name])
+            else:
+                self.logger.warning(f"Module {name} does not exist in registry.")
+
+    def run_offline(self, inputs: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
+        """
+        Run the model offline on the inputs. Useful for training and evaluation.
+
+        Args:
+            inputs (dict[str, dict[str, torch.Tensor]]): the inputs to the model
+
+        Returns:
+            dict[str, torch.Tensor]: the outputs of the model
+        """
+        raise NotImplementedError("run_offline is not implemented")
 
 
 class CyberAgent:
