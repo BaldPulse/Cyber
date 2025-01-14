@@ -35,3 +35,11 @@ class DiffusionBackbone(nn.Module, ABC):
         if condition is None, then it is assumed that condition is cached somewhere in the model.
         """
         raise NotImplementedError
+
+    def set_condition_cache(self, condition: torch.Tensor):
+        """Set the condition cache for the model.
+
+        Args:
+            condition (torch.Tensor): the condition to cache. shape (batch_size, *condition_dim)
+        """
+        raise NotImplementedError

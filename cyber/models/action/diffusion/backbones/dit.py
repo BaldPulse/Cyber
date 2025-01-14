@@ -284,6 +284,9 @@ class DiTNoiseNet(DiffusionBackbone):
 
         logger.info("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))
 
+    def set_condition_cache(self, condition: torch.Tensor):
+        self.enc_cache = self.forward_enc(condition)
+
     def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: Optional[torch.Tensor] = None, **kwargs) -> torch.Tensor:
         """
         performs a forward pass through the DiTNoiseNet.

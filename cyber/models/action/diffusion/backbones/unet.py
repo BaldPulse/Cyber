@@ -245,6 +245,9 @@ class ConditionalUnet1D(DiffusionBackbone):
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
 
+    def set_condition_cache(self, condition: torch.Tensor):
+        self.global_condition = condition
+
     def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: Optional[torch.Tensor] = None, **kwargs):
         """forward pass for the model.
 
