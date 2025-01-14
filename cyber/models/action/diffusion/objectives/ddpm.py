@@ -92,7 +92,7 @@ class DDPMObjective:
 
         Args:
             model(torch.nn.Module): the model to generate actions from
-            model_input(dict): the input to the model
+            model_input(dict): the input to the model other than time_step and noise_actions
             batch_size(int): the batch size of the input
             act_dims(tuple): the dimensions of the actions to generate
 
@@ -112,3 +112,6 @@ class DDPMObjective:
                 noise_actions = self.scheduler.step(model_output=noise_pred, timestep=timestep, sample=noise_actions).prev_sample
 
         return noise_actions
+
+
+# TODO: more flexible generation of actions
