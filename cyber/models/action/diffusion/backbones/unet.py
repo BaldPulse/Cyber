@@ -270,10 +270,7 @@ class ConditionalUnet1D(DiffusionBackbone):
 
         # 1. time
         timesteps = time_step
-        if not isinstance(timesteps, torch.Tensor):
-            # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
-            timesteps = torch.tensor([timesteps], dtype=torch.long, device=sample.device)
-        elif isinstance(timesteps, torch.Tensor) and len(timesteps.shape) == 0:
+        if len(timesteps.shape) == 0:
             timesteps = timesteps[None].to(sample.device)
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         timesteps = timesteps.expand(sample.shape[0])
