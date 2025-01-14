@@ -62,7 +62,7 @@ class ActionModel(CyberModule):
     The advent of transformers has made it easy to handle highly heterogeneous data.
     This structure assumes that the trunk has the ability to handle any kind of data.
     """
-    domain_registry: ClassVar[Dict[str, tuple[str, str, str]]] = {}  # registry holding the stem, trunk, and head for each domain
+    domain_registry: ClassVar[Dict[str, List[str]]] = {}  # registry holding the stem, trunk, and head for each domain
 
     logger = logging.getLogger("ActionModel")
 
@@ -111,7 +111,18 @@ class ActionModel(CyberModule):
         if name not in self.module_registry:
             raise ValueError(f"Module with name {name} is not registered.")
         del self.module_registry[name]
-        del self.module_info[name]  # TODO: mark domains that use the deleted module as "<unregistered>"
+        # mark this module as unregistered in domains that use it
+        self.logger.warning(f"These domains use {name}: {self.module_info[name][3]}\n\
+                            They will be marked as <unregistered> and will stop functioning.")
+        for domain_component in self.module_info[name][3]:
+            domain, component = domain_component.split(".")
+            component_idx = {
+                "stem": 0,
+                "trunk": 1,
+                "head": 2,
+            }[component]
+            self.domain_registry[domain][component_idx] = "<unregistered>"
+        del self.module_info[name]
 
     def print_module_info(self) -> None:
         """
@@ -150,7 +161,7 @@ class ActionModel(CyberModule):
         # register the domain
         if domain in self.domain_registry:
             raise ValueError(f"Domain {domain} is already registered.")
-        self.domain_registry[domain] = (stem, trunk, head)
+        self.domain_registry[domain] = [stem, trunk, head]
         # update the module info
         self.module_info[stem][3].append(domain + ".stem")
         self.module_info[trunk][3].append(domain + ".trunk")
