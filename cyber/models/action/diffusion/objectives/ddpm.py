@@ -6,6 +6,8 @@ import diffusers
 
 from typing import Tuple, Optional, List
 
+from cyber.models.action.diffusion.backbones.diffusionbackbone import DiffusionBackbone
+
 
 class DDPMObjective:
     r"""DDPMObjective class for handling **classic** diffusion objectives.
@@ -84,7 +86,7 @@ class DDPMObjective:
         else:
             self.scheduler.set_timesteps(desired_inference_steps)
 
-    def generate_actions(self, model: torch.nn.Module, model_input: dict, batch_size: int, act_dims: tuple) -> torch.Tensor:
+    def generate_actions(self, model: DiffusionBackbone, model_input: dict, batch_size: int, act_dims: tuple) -> torch.Tensor:
         """
         Generate actions from the model.
 
@@ -106,7 +108,7 @@ class DDPMObjective:
             with torch.no_grad():
                 model_input["noise_actions"] = noise_actions
                 model_input["time_step"] = timestep.unsqueeze(0).repeat(batch_size).to(device)
-                noise_pred = model(**model_input)
+                noise_pred = model.forward(**model_input)
                 noise_actions = self.scheduler.step(model_output=noise_pred, timestep=timestep, sample=noise_actions).prev_sample
 
         return noise_actions
