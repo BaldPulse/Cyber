@@ -22,7 +22,7 @@ class TestConditionalUnet1D:
         cls.input = {
             "noise_actions": torch.randn(3, 4, 6), # (batch_size, ac_chunk, ac_dim)
             "time_step": torch.randn(3), # (batch_size,)
-            "global_cond": torch.randn(3, global_condition_dim), # (batch_size, act_horizon, global_condition_dim)
+            "condition": torch.randn(3, global_condition_dim), # (batch_size, act_horizon, global_condition_dim)
             "local_cond": torch.randn(3, 4, local_condition_dim) # (batch_size, act_horizon, local_condition_dim)
         }
         

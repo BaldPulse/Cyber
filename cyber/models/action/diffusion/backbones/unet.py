@@ -15,9 +15,9 @@ from torch import nn
 import torch
 import einops
 
-from typing import Union
 
 from cyber.models.action.diffusion.backbones.nn_utils import FourierEmb
+from cyber.models.action.diffusion.backbones.diffusionbackbone import DiffusionBackbone
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class ConditionalResidualBlock1D(nn.Module):
         return out
 
 
-class ConditionalUnet1D(nn.Module):
+class ConditionalUnet1D(DiffusionBackbone):
     """unet for 1d data with FiLM modulation for conditioning
 
     Janner et all induced diffusion into robotics policy using a 1d unet https://arxiv.org/abs/2205.09991
@@ -134,8 +134,8 @@ class ConditionalUnet1D(nn.Module):
     def __init__(
         self,
         input_dim,
-        local_cond_dim=None,
         global_cond_dim=None,
+        local_cond_dim=None,
         diffusion_step_embed_dim=256,
         down_dims=(256, 512, 1024),
         kernel_size=3,
@@ -145,10 +145,10 @@ class ConditionalUnet1D(nn.Module):
         """
         args:
             input_dim(int): number of input channels
+            global_cond_dim(int): dimension of the global conditioning vector
             local_cond_dim(int): dimension of the local conditioning vector, default=None(no local conditioning)
-            global_cond_dim(int): dimension of the global conditioning vector, default=None(no global conditioning)
             diffusion_step_embed_dim(int): dimension of the diffusion step embedding, default=256
-            down_dims(tuple): dimensions of the unet downsampled layers, default=(256, 512, 1024)
+            down_dims(tuple[int]): dimensions of the unet downsampled layers, default=(256, 512, 1024)
             kernel_size(int): kernel size for the convolutional layers, default=3
             n_groups(int): number of groups for GroupNorm, default=8
             cond_predict_scale(bool): whether to predict scale for FiLM modulation, default=False(only bias is predicted)
@@ -164,9 +164,7 @@ class ConditionalUnet1D(nn.Module):
             nn.Mish(),
             nn.Linear(dsed * 4, dsed),
         )
-        cond_dim = dsed
-        if global_cond_dim is not None:
-            cond_dim += global_cond_dim
+        cond_dim = dsed + global_cond_dim
 
         in_out = list(itertools.pairwise(all_dims))
 
@@ -246,21 +244,23 @@ class ConditionalUnet1D(nn.Module):
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
 
-    def forward(self, noise_actions: torch.Tensor, time_step: Union[torch.Tensor, float, int], local_cond=None, global_cond=None, **kwargs):
+    def forward(self, noise_actions: torch.Tensor, time_step: torch.Tensor, condition: torch.Tensor, **kwargs):
         """forward pass for the model.
 
         Since the model is devised for diffusion policy, the argument names are specific to diffusion policy
 
         args:
             noise_actions(torch.Tensor): input tensor, shape: (batch_size, horizon, input_dim)
-            time_step(Union[torch.Tensor, float, int]): diffusion step. if not tensor, it is converted to tensor
-            local_cond(torch.Tensor): local conditioning tensor, shape: (batch_size, horizon, local_cond_dim), default=None
-            global_cond(torch.Tensor): global conditioning tensor, shape: (batch_size, global_cond_dim), default=None
+            time_step(torch.Tensor): diffusion step
+            condition(torch.Tensor): global conditioning tensor, shape: (batch_size, global_cond_dim)
+
+        keyword args:
+            local_cond(torch.Tensor): local conditioning tensor, shape: (batch_size, horizon, local_cond_dim) (default=None)
 
         returns:
             output(torch.Tensor): predicted noise, shape: (batch_size, horizon, input_dim)
 
-        NOTE: because of upsampling/downsampling with stride 2, some action horizons may cause shape mismatch.
+        NOTE 1: because of upsampling/downsampling with stride 2, some action horizons may cause shape mismatch.
         In general, avoid using horizons that are not multiples of 2 or too small.
 
         NOTE 2: the original code has a bug in the upsample path where local features are not added. This has been fixed here.
@@ -279,9 +279,9 @@ class ConditionalUnet1D(nn.Module):
         timesteps = timesteps.expand(sample.shape[0])
 
         global_feature = self.diffusion_step_encoder(timesteps)
+        global_feature = torch.cat([global_feature, condition], axis=-1)
 
-        if global_cond is not None:
-            global_feature = torch.cat([global_feature, global_cond], axis=-1)
+        local_cond = kwargs.get("local_cond", None)
 
         # encode local features
         h_local = []
