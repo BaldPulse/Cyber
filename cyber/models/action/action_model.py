@@ -10,12 +10,32 @@ import torch
 from torch import nn
 
 
-from typing import Optional, List, ClassVar
+from typing import Optional, List, ClassVar, Dict
 
 import prettytable
 import logging
 
 from cyber.models import CyberModule
+
+# class ModuleQueue:
+#     '''ModuleQueue class for handling queues for modules.
+#     '''
+
+#     def __init__(self, batchsize: int):
+#         self.batchsize = batchsize
+#         self.Q = thmp.Queue()
+#         self.buffer = None
+
+#     def enqueue(self, data: Dict[str, torch.Tensor]) -> None:
+#         '''Enqueue the data to the queue.
+
+#         Args:
+#             data (Dict[str, torch.Tensor]): the data to enqueue
+#         '''
+#         # 1. get the length of the data
+#         length = len(data[list(data.keys())[0]])
+#         # 2. put the data into the queue
+#         # 2.1 the buffer
 
 
 class ActionModel(CyberModule):
@@ -35,14 +55,14 @@ class ActionModel(CyberModule):
     """
 
     module_registry: nn.ModuleDict = nn.ModuleDict()  # shared registry for all modules. this makes sharing modules easier
-    module_info: ClassVar[dict[str, tuple[str, int, int, List[str]]]] = {}  # module_name: (classname, num_params, num_trainable_params, used_in)
-    module_batchsize = ClassVar[dict[str, int]]  # batchsize for each module
+    module_info: ClassVar[Dict[str, tuple[str, int, int, List[str]]]] = {}  # module_name: (classname, num_params, num_trainable_params, used_in)
+    module_batchsize: ClassVar[Dict[str, int]] = {}  # batchsize for each module
 
     """
     The advent of transformers has made it easy to handle highly heterogeneous data.
     This structure assumes that the trunk has the ability to handle any kind of data.
     """
-    domain_registry: ClassVar[dict[str, tuple[str, str, str]]] = {}  # registry holding the stem, trunk, and head for each domain
+    domain_registry: ClassVar[Dict[str, tuple[str, str, str]]] = {}  # registry holding the stem, trunk, and head for each domain
 
     logger = logging.getLogger("ActionModel")
 
@@ -165,31 +185,60 @@ class ActionModel(CyberModule):
             table.add_row([domain, stem, trunk, head])
         print(table)  # noqa: T201
 
-    def configure_module_batchsize(self, module_batchsize: dict[str, int]) -> None:
+    def configure_async_module_batchsize(self, module_batchsize: Dict[str, int]) -> None:
         """
-        Configure the batchsize of the modules for running the model.
+        Configure the batchsize of the modules for running the model in async.
 
         Args:
-            module_batchsize (dict[str, int]): the batchsize for each module
+            module_batchsize (Dict[str, int]): the batchsize for each module
         """
 
-        for name, module in self.module_registry.items():
-            if name in module_batchsize:
-                module.configure_batchsize(module_batchsize[name])
+        for name, batchsize in module_batchsize.items():
+            if name in self.module_registry:
+                self.module_batchsize[name] = batchsize
             else:
                 self.logger.warning(f"Module {name} does not exist in registry.")
 
-    def run_offline(self, inputs: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
+    def run_async(self, inputs: Dict[str, Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
         """
-        Run the model offline on the inputs. Useful for training and evaluation.
+        Run the different modules async on the inputs. Useful for training and evaluation on large batches.
+
+        This method creates queues for each module and runs them in a producer-consumer pattern.
+        Theoretically, this could even work on multiple GPUs.
 
         Args:
-            inputs (dict[str, dict[str, torch.Tensor]]): the inputs to the model
+            inputs (Dict[str, Dict[str, torch.Tensor]]): the inputs to the model
 
         Returns:
-            dict[str, torch.Tensor]: the outputs of the model
+            Dict[str, torch.Tensor]: the outputs of the model
         """
-        raise NotImplementedError("run_offline is not implemented")
+        # TODO: implement run_async
+        raise NotImplementedError("run_async is not implemented")
+
+    def run_for_domain(self, domain, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """
+        Run the model for a specific domain. This ignores async batch sizes set.
+
+        Args:
+            domain (str): the domain to run the model for
+            inputs (Dict[str, torch.Tensor]): the inputs to the model
+
+        Returns:
+            torch.Tensor: the output of the model
+        """
+        stem, trunk, head = self.domain_registry[domain]
+        stem_module = self.module_registry[stem]
+        trunk_module = self.module_registry[trunk]
+        head_module = self.module_registry[head]
+
+        # run the stem
+        stem_output = stem_module(inputs)
+        # run the trunk
+        trunk_output = trunk_module(stem_output)
+        # run the head
+        head_output = head_module(trunk_output)
+
+        return head_output
 
 
 class CyberAgent:
