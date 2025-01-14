@@ -7,8 +7,8 @@ import diffusers
 from typing import Tuple, Optional, List
 
 
-class DiffusionObjective:
-    r"""DiffusionObjective class for handling **classic** diffusion objectives.
+class DDPMObjective:
+    r"""DDPMObjective class for handling **classic** diffusion objectives.
 
     This class contains boilerplate code for training and inference with a DDPM/DDIM model.
 

@@ -7,6 +7,11 @@ from cyber.models import CyberModule
 
 
 class ActionModel(CyberModule):
+    """ActionModel class for learning-based policies.
+    This class is the base class for all action models.
+    It is desgisned for real-time inferencing on robotics applications.
+    """
+
     def __init__(self, backbone: str, objective: str):
         super().__init__()
 

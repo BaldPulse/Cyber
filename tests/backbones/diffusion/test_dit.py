@@ -1,4 +1,4 @@
-from cyber.models.action.backbones.diffusion.dit import DiTNoiseNet
+from cyber.models.action.diffusion.backbones import DiTNoiseNet
 import torch
 
 from tests.utils import reseed_everything

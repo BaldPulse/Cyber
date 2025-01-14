@@ -17,7 +17,7 @@ import einops
 
 from typing import Union
 
-from cyber.models.action.backbones.diffusion.nn_utils import FourierEmb
+from cyber.models.action.diffusion.backbones.nn_utils import FourierEmb
 
 logger = logging.getLogger(__name__)
 

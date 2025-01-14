@@ -14,13 +14,14 @@
 import copy
 import logging
 
-from typing import List, Optional
+from typing import List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
-from cyber.models.action.backbones.diffusion.nn_utils import SinusoidalPosEnc, FourierEmb
+from cyber.models.action.diffusion.backbones.nn_utils import SinusoidalPosEnc, FourierEmb
+from cyber.models.action.diffusion.backbones.diffusionbackbone import DiffusionBackbone
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class _DiTDecoder(nn.Module):
             s.reset_parameters()
 
 
-class DiTNoiseNet(nn.Module):
+class DiTNoiseNet(DiffusionBackbone):
     """
     DiTNoiseNet class as proposed in https://arxiv.org/pdf/2410.10088
 
@@ -284,7 +285,10 @@ class DiTNoiseNet(nn.Module):
         logger.info("number of diffusion parameters: {:e}".format(sum(p.numel() for p in self.parameters())))
 
     def forward(
-        self, noise_actions: torch.Tensor, time_step: torch.Tensor, obs_enc: torch.Tensor, enc_cache: Optional[List[torch.Tensor]] = None
+        self,
+        noise_actions: torch.Tensor,
+        time_step: torch.Tensor,
+        condition: torch.Tensor,
     ) -> torch.Tensor:
         """
         performs a forward pass through the DiTNoiseNet.
@@ -301,8 +305,8 @@ class DiTNoiseNet(nn.Module):
             enc_cache (list of tensors): the encoded cache. shape [num_blocks, (num_tokens, batch_size, hidden_dim)]
             the predicted epsilon actions. shape (ac_chunk, batch_size, ac_dim)
         """
-        if enc_cache is None:
-            enc_cache = self.forward_enc(obs_enc)
+        # if enc_cache is None:
+        enc_cache = self.forward_enc(condition)
         return self.forward_dec(noise_actions, time_step, enc_cache)
 
     def forward_enc(self, obs_enc: torch.Tensor) -> List[torch.Tensor]:

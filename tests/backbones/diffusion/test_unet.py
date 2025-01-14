@@ -1,4 +1,4 @@
-from cyber.models.action.backbones.diffusion import ConditionalUnet1D
+from cyber.models.action.diffusion.backbones import ConditionalUnet1D
 import torch
 
 from tests.utils import reseed_everything
