@@ -61,3 +61,6 @@ class DiffusionPolicy(CyberModule):
         """
         self.model.set_condition_cache(condition)
         return self.objective.generate_actions(self.model, {}, batch_size=condition.shape[0], act_dims=(act_dims,))
+
+    def get_train_collator(self, *args, **kwargs):
+        raise NotImplementedError  # TODO: Implement this method after implementing the dataset
