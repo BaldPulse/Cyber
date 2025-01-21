@@ -53,7 +53,7 @@ def sync_at_rate(data_timestamps, rate=50, custom_sync_timestamps=None):
     sample at a certain rate to create a synced-up list of indices in all modalities
 
     Args:
-    data_timestamps (list): timestamps of different data modalities, in seconds
+    data_timestamps (list): timestamps of different data modalities, in nanoseconds
     rate (int): rate of sync. in hz (default 50)
     custom_sync_timestamps: use custeom sync timestamps instead of sync timestamps sampled at uniform rate (default None)
 
@@ -72,8 +72,8 @@ def sync_at_rate(data_timestamps, rate=50, custom_sync_timestamps=None):
         raise ValueError(f"data modalities are not from the same time period: {np.where(not_overlapping)}")
     if custom_sync_timestamps is None:
         end_timestamp = np.min([data_timestamps[i][-1] for i in range(len(data_timestamps))])
-        sync_length = math.floor(end_timestamp - start_timestamp) * rate
-        sync_timestamps = np.arange(start_timestamp, end_timestamp, 1 / rate)
+        sync_length = math.floor(end_timestamp - start_timestamp) * rate / 1e9
+        sync_timestamps = np.arange(start_timestamp, end_timestamp, 1 / rate * 1e9)
     else:
         sync_timestamps = custom_sync_timestamps
         sync_length = len(sync_timestamps)
