@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import math
 
 
 # Create a package-level logger
@@ -44,6 +45,60 @@ def match_timestamps(times_a, times_b):
         matches_b[j:] = [i - 1] * (len(times_a) - j)
         diffs_b[j:] = [abs(times_a[-1] - times_b[j])] * (len(times_b) - j)
     return matches_a, matches_b, diffs_a, diffs_b
+
+
+def sync_at_rate(data_timestamps, rate=50, custom_sync_timestamps=None):
+    """
+    Given lists of timestamps of different data modalities, start at the soonest timestamp that all data have arrived,
+    sample at a certain rate to create a synced-up list of indices in all modalities
+
+    Args:
+    data_timestamps (list): timestamps of different data modalities, in seconds
+    rate (int): rate of sync. in hz (default 50)
+    custom_sync_timestamps: use custeom sync timestamps instead of sync timestamps sampled at uniform rate (default None)
+
+    Returns:
+    sync_indices (np.ndarray): indices of the synced-up timestamps in each modality
+    sync_timestamps (np.ndarray): timestamps at which the data is synced up
+    latencies (np.ndarray): latencies of each modality at each synced-up timestamp
+    start_indices (np.ndarray): starting indices of each modality
+    """
+    if custom_sync_timestamps is None:
+        start_timestamp = np.max([data_timestamps[i][0] for i in range(len(data_timestamps))])
+    else:
+        start_timestamp = custom_sync_timestamps[0]
+    not_overlapping = start_timestamp > np.array([data_timestamps[i][-1] for i in range(len(data_timestamps))])
+    if np.any(not_overlapping):
+        raise ValueError(f"data modalities are not from the same time period: {np.where(not_overlapping)}")
+    if custom_sync_timestamps is None:
+        end_timestamp = np.min([data_timestamps[i][-1] for i in range(len(data_timestamps))])
+        sync_length = math.floor(end_timestamp - start_timestamp) * rate
+        sync_timestamps = np.arange(start_timestamp, end_timestamp, 1 / rate)
+    else:
+        sync_timestamps = custom_sync_timestamps
+        sync_length = len(sync_timestamps)
+    current_indices = np.zeros(data_timestamps.shape[0], dtype=int)
+    for mod_id in data_timestamps.shape[0]:
+        if current_indices[mod_id] == len(data_timestamps[mod_id]):
+            continue
+        while data_timestamps[mod_id][current_indices[mod_id] + 1] < start_timestamp:
+            current_indices[mod_id] += 1
+    sync_indices = np.zeros((data_timestamps.shape[0], sync_length), dtype=int)
+    latencies = np.zeros((data_timestamps.shape[0], sync_length))
+    start_indices = np.array(current_indices)  # save the starting indices
+    # perform sync
+    for i in range(sync_length):
+        for mod_id in data_timestamps.shape[0]:
+            if current_indices[mod_id] == len(data_timestamps[mod_id]) - 1:
+                sync_indices[mod_id, i] = current_indices[mod_id] - 1
+                latencies[mod_id, i] = sync_timestamps[i] - data_timestamps[mod_id][current_indices[mod_id]]
+                continue
+            while data_timestamps[mod_id][current_indices[mod_id] + 1] < sync_timestamps[i]:
+                current_indices[mod_id] += 1
+            sync_indices[mod_id, i] = current_indices[mod_id]
+            latencies[mod_id, i] = sync_timestamps[i] - data_timestamps[mod_id][current_indices[mod_id]]
+
+    return sync_indices, sync_timestamps, latencies, start_indices
 
 
 class ConcatMemmap(object):
