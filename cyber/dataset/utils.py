@@ -62,6 +62,9 @@ def sync_at_rate(data_timestamps, rate=50, custom_sync_timestamps=None):
     sync_timestamps (np.ndarray): timestamps at which the data is synced up
     latencies (np.ndarray): latencies of each modality at each synced-up timestamp
     start_indices (np.ndarray): starting indices of each modality
+
+    Raises:
+    ValueError: if the data modalities are not from the same time period
     """
     if custom_sync_timestamps is None:
         start_timestamp = np.max([data_timestamps[i][0] for i in range(len(data_timestamps))])
